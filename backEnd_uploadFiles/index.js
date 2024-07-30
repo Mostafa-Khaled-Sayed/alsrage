@@ -16,8 +16,11 @@ cloudinary.config({
 });
 
 // إعداد CORS
-app.use(cors()); // يمكنك تخصيص إعدادات CORS حسب الحاجة
-
+app.use(cors({
+    origin: 'https://alsrage.vercel.app', // السماح بالطلبات من هذا النطاق
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // السماح بالطرق المطلوبة
+    allowedHeaders: ['Content-Type', 'Authorization'], // السماح بالرؤوس المطلوبة
+  }));
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
