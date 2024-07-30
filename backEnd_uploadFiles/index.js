@@ -1,9 +1,10 @@
-const express = require('express');
-const multer = require('multer');
-const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cors = require('cors'); // استيراد مكتبة CORS
-require('dotenv').config();
+const express = require("express");
+const path = require("path");
+const cors = require("cors");
+const multer = require("multer");
+const { v2: cloudinary } = require("cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+require("dotenv").config(); // تحميل متغيرات البيئة
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -15,36 +16,74 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// إعداد CORS
-app.use(cors({
-    origin: 'https://alsrage.vercel.app', // السماح بالطلبات من هذا النطاق
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // السماح بالطرق المطلوبة
-    allowedHeaders: ['Content-Type', 'Authorization'], // السماح بالرؤوس المطلوبة
-  }));
+// Cloudinary storage configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'uploads',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+  params: async (req, file) => {
+    let folderName = "uploads";
+    let format = file.mimetype.split("/")[1];
+
+    if (file.mimetype.startsWith("image")) {
+      folderName = "images";
+    } else if (file.mimetype.startsWith("video")) {
+      folderName = "videos";
+    } else if (file.mimetype === "application/pdf") {
+      folderName = "pdfs";
+      format = "pdf";
+    }
+
+    return {
+      folder: folderName,
+      format: format,
+      public_id: `category-${file.originalname.split(".")[0]}-${Date.now()}`,
+    };
   },
 });
 
-const upload = multer({ storage: storage });
-
-app.post('/upload', upload.single('file'), (req, res) => {
-  try {
-    if (!req.file) {
-      console.log('No file uploaded.');
-      return res.status(400).send('No file uploaded.');
-    }
-    console.log('File uploaded successfully:', req.file);
-    res.status(200).send(`File uploaded successfully: ${req.file.path}`);
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).send('Error uploading file.');
+function multerFilter(req, file, cb) {
+  const fileType = file.mimetype.split("/")[0];
+  if (
+    fileType.startsWith("image") ||
+    fileType.startsWith("video") ||
+    file.mimetype === "application/pdf"
+  ) {
+    cb(null, true);
+  } else {
+    req.fileValidationError = "Only Images, Videos, and PDFs are allowed!";
+    cb(null, false);
   }
+}
+
+const upload = multer({ storage: storage, fileFilter: multerFilter });
+
+const corsOptions = {
+  origin: '*',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, "public")));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (req.fileValidationError) {
+    return res.status(400).json({ message: req.fileValidationError });
+  }
+  if (!req.file) {
+    return res.status(400).json({ message: "Please upload a file" });
+  }
+  res.status(200).json({
+    message: req.file.path,
+  });
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running on http://localhost:${port}`);
 });
