@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cors = require('cors'); // استيراد مكتبة CORS
 require('dotenv').config();
 
 const app = express();
@@ -14,6 +15,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// إعداد CORS
+app.use(cors()); // يمكنك تخصيص إعدادات CORS حسب الحاجة
+
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -25,16 +29,19 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage: storage });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).send('No file uploaded.');
-      }
-      res.status(200).send(`File uploaded successfully: ${req.file.path}`);
-    } catch (error) {
-      console.error(error);
-      res.status(500).send('Error uploading file.');
+  try {
+    if (!req.file) {
+      console.log('No file uploaded.');
+      return res.status(400).send('No file uploaded.');
     }
-  });
+    console.log('File uploaded successfully:', req.file);
+    res.status(200).send(`File uploaded successfully: ${req.file.path}`);
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).send('Error uploading file.');
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
