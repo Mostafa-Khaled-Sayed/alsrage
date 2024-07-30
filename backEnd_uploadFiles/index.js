@@ -25,12 +25,16 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage: storage });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
-  res.status(200).send(`File uploaded successfully: ${req.file.path}`);
-});
-
+    try {
+      if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+      }
+      res.status(200).send(`File uploaded successfully: ${req.file.path}`);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('Error uploading file.');
+    }
+  });
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
